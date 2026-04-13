@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>課題一覧</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+  body { font-family: system-ui; padding: 20px; }
+
+  h2 { margin-bottom: 20px; text-align: center; }
+
+  /* --- タイルレイアウト --- */
+  #tileContainer {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+
+  .tile {
+    padding: 16px;
+    border-radius: 10px;
+    color: #000;
+    text-align: center;
+    font-size: 18px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+  }
+
+  /* --- 色 --- */
+  .gray { background: #e0e0e0; }
+  .blue { background: #bde0ff; }
+  .yellow { background: #fff3b0; }
+  .orange { background: #ffd59e; }
+  .red { background: #ff0000; }
+
+  /* --- 点滅（ゆっくり） --- */
+  @keyframes slowBlink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+  }
+  .slow-blink {
+    animation: slowBlink 1s infinite;
+  }
+
+  /* --- 点滅（速い） --- */
+  @keyframes fastBlink {
+    0% { opacity: 1; }
+    50% { opacity: 0.1; }
+    100% { opacity: 1; }
+  }
+  .fast-blink {
+    animation: fastBlink 0.3s infinite;
+  }
+
+  /* --- 管理画面ボタン --- */
+  #manageBtn {
+    width: 100%;
+    padding: 14px;
+    background: #4a6cf7;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  /* --- モーダル --- */
+  #modalBg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+  }
+
+  #modal {
+    background: #fff;
+    width: 90%;
+    max-width: 500px;
+    margin: 80px auto;
+    padding: 20px;
+    border-radius: 10px;
+  }
+
+  .taskBox {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ★ 教員が設定したタイトルを表示 -->
+<h2 id="tileTitle">課題一覧</h2>
+
+<!-- ★ 3×5 タイル -->
+<div id="tileContainer"></div>
+
+<!-- ★ 管理画面に進むボタン -->
+<button id="manageBtn" onclick="openManage()">管理画面に進む</button>
+
+<!-- モーダル -->
+<div id="modalBg" onclick="closeModal()">
+  <div id="modal" onclick="event.stopPropagation()">
+    <h3 id="modalTitle"></h3>
+    <div id="modalTasks"></div>
+    <button onclick="closeModal()">閉じる</button>
+  </div>
+</div>
+
+<script>
+/* ------------------------------
+   データ読み込み
+------------------------------ */
+let data = JSON.parse(localStorage.getItem("taskData")) || {
+  subjects: Array.from({ length: 15 }, () => ({
+    name: "科目名",
+    tasks: []
+  }))
+};
+
+let pwData = JSON.parse(localStorage.getItem("pwData")) || {
+  teacherPW: "2026hrt",
+  studentPW: "2026s",
+  tileTitle: "課題一覧"
+};
+
+/* ★ タイトル反映 */
+document.getElementById("tileTitle").textContent = pwData.tileTitle;
+
+/* 提出状態（ユーザーごとに独立） */
+let submitData = JSON.parse(localStorage.getItem("submitData")) || {};
+
+/* ------------------------------
+   管理画面へ
+------------------------------ */
+function openManage() {
+  const pw = prompt("パスワードを入力してください");
+
+  if (pw === pwData.teacherPW || pw === "adminhrt") {
+    location.href = "teacher.html";
+  } else if (pw === pwData.studentPW || pw === "adminstdt") {
+    location.href = "student.html";
+  } else {
+    alert("パスワードが違います");
+  }
+}
+
+/* ------------------------------
+   タイル描画
+------------------------------ */
+function renderTiles() {
+  const box = document.getElementById("tileContainer");
+  box.innerHTML = "";
+
+  data.subjects.forEach((subj, i) => {
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.textContent = subj.name;
+
+    const colorClass = getTileColor(i);
+    tile.classList.add(...colorClass.split(" "));
+
+    tile.onclick = () => openModal(i);
+
+    box.appendChild(tile);
+  });
+}
+
+/* ------------------------------
+   タイル色判定ロジック
+------------------------------ */
+function getTileColor(subjectIndex) {
+  const tasks = data.subjects[subjectIndex].tasks;
+
+  if (!submitData["subject" + subjectIndex]) {
+    submitData["subject" + subjectIndex] = {};
+  }
+
+  const now = new Date();
+
+  // 未提出課題だけ抽出
+  const unsubmitted = tasks.filter((t, idx) => !submitData["subject" + subjectIndex][idx]);
+
+  // 未提出がない → グレー
+  if (unsubmitted.length === 0) return "gray";
+
+  // 期限切れの未提出
+  const overdue = unsubmitted.filter(t => new Date(t.deadline) < now);
+
+  if (overdue.length >= 2) return "fast-blink red";
+  if (overdue.length === 1) return "slow-blink red";
+
+  // 最も期限が近い未提出
+  const nearest = unsubmitted.reduce((a, b) =>
+    new Date(a.deadline) < new Date(b.deadline) ? a : b
+  );
+
+  const diffH = (new Date(nearest.deadline) - now) / 1000 / 3600;
+
+  if (diffH <= 24) return "red";
+  if (diffH <= 48) return "orange";
+  if (diffH <= 72) return "yellow";
+  return "blue";
+}
+
+/* ------------------------------
+   モーダル表示
+------------------------------ */
+function openModal(subjectIndex) {
+  const subj = data.subjects[subjectIndex];
+  document.getElementById("modalTitle").textContent = subj.name;
+
+  const taskBox = document.getElementById("modalTasks");
+  taskBox.innerHTML = "";
+
+  if (!submitData["subject" + subjectIndex]) {
+    submitData["subject" + subjectIndex] = {};
+  }
+
+  subj.tasks.forEach((t, idx) => {
+    const checked = submitData["subject" + subjectIndex][idx] ? "checked" : "";
+
+    taskBox.innerHTML += `
+      <div class="taskBox">
+        <b>${t.content}</b><br>
+        期限：${t.deadline}<br>
+        <label>
+          <input type="checkbox" ${checked}
+            onchange="toggleSubmit(${subjectIndex}, ${idx}, this)">
+          提出した
+        </label>
+      </div>
+    `;
+  });
+
+  document.getElementById("modalBg").style.display = "block";
+}
+
+function closeModal() {
+  document.getElementById("modalBg").style.display = "none";
+}
+
+/* ------------------------------
+   提出チェック
+------------------------------ */
+function toggleSubmit(subjectIndex, taskIndex, checkbox) {
+  submitData["subject" + subjectIndex][taskIndex] = checkbox.checked;
+  localStorage.setItem("submitData", JSON.stringify(submitData));
+  renderTiles();
+}
+
+/* ------------------------------
+   初期描画
+------------------------------ */
+renderTiles();
+</script>
+
+</body>
+</html>

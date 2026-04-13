@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>教員管理画面</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+  body { font-family: system-ui; padding: 20px; }
+  .menu-btn { width: 100%; padding: 14px; margin-bottom: 12px; background: #4a6cf7; color: white; border: none; border-radius: 8px; }
+  .hidden { display: none; }
+  .subject-box { border: 1px solid #ccc; padding: 12px; margin-bottom: 12px; border-radius: 8px; }
+  .delete-btn { background: #d9534f; color: white; border: none; padding: 6px 10px; border-radius: 4px; }
+  .save-btn { margin-top: 10px; padding: 10px; width: 100%; background: #4a6cf7; color: white; border: none; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<h2>教員管理画面</h2>
+
+<div id="menu">
+  <!-- ★ 一番上に変更 -->
+  <button class="menu-btn" id="btnTitle">タイトル設定</button>
+  <button class="menu-btn" id="btnName">科目名設定</button>
+  <button class="menu-btn" id="btnTask">課題設定</button>
+  <button class="menu-btn" id="btnPW">PW設定</button>
+</div>
+
+<!-- タイトル設定 -->
+<div id="titleSetting" class="hidden">
+  <h3>タイトル設定</h3>
+  <input id="newTitle" style="width:100%; padding:8px;">
+  <button class="save-btn" onclick="saveTitle()">保存</button>
+</div>
+
+<!-- 科目名設定 -->
+<div id="nameSetting" class="hidden">
+  <h3>科目名設定</h3>
+  <div id="nameList"></div>
+</div>
+
+<!-- 課題設定 -->
+<div id="taskSetting" class="hidden">
+  <h3>課題設定</h3>
+  <div id="taskList"></div>
+</div>
+
+<!-- PW設定 -->
+<div id="pwSetting" class="hidden">
+  <h3>PW設定</h3>
+  教員PW：<input id="tpw"><br><br>
+  学生PW：<input id="spw"><br><br>
+  <button class="save-btn" onclick="savePW()">保存</button>
+</div>
+
+<script>
+const SUBJECT_COUNT = 15;
+
+let data = JSON.parse(localStorage.getItem("taskData")) || {
+  subjects: Array.from({ length: SUBJECT_COUNT }, () => ({
+    name: "科目名",
+    tasks: []
+  }))
+};
+
+let pwData = JSON.parse(localStorage.getItem("pwData")) || {
+  teacherPW: "2026hrt",
+  studentPW: "2026s",
+  tileTitle: "課題一覧"
+};
+
+localStorage.setItem("pwData", JSON.stringify(pwData));
+
+/* ------------------------------
+   メニュー切り替え
+------------------------------ */
+function hideAll() {
+  titleSetting.classList.add("hidden");
+  nameSetting.classList.add("hidden");
+  taskSetting.classList.add("hidden");
+  pwSetting.classList.add("hidden");
+}
+
+btnTitle.onclick = () => { hideAll(); titleSetting.classList.remove("hidden"); };
+btnName.onclick = () => { hideAll(); nameSetting.classList.remove("hidden"); renderNameSetting(); };
+btnTask.onclick = () => { hideAll(); taskSetting.classList.remove("hidden"); renderTaskSetting(); };
+btnPW.onclick = () => { hideAll(); pwSetting.classList.remove("hidden"); };
+
+/* ------------------------------
+   タイトル設定
+------------------------------ */
+function saveTitle() {
+  pwData.tileTitle = document.getElementById("newTitle").value;
+  localStorage.setItem("pwData", JSON.stringify(pwData));
+  alert("保存しました");
+}
+
+/* ------------------------------
+   科目名設定
+------------------------------ */
+function renderNameSetting() {
+  const list = document.getElementById("nameList");
+  list.innerHTML = "";
+
+  data.subjects.forEach((subj, i) => {
+    list.innerHTML += `
+      <div class="subject-box">
+        No.${i+1}：
+        <input id="name${i}" value="${subj.name}" style="width:70%;">
+        <button class="save-btn" onclick="saveName(${i})">保存</button>
+      </div>
+    `;
+  });
+}
+
+function saveName(i) {
+  data.subjects[i].name = document.getElementById("name" + i).value;
+  localStorage.setItem("taskData", JSON.stringify(data));
+  alert("保存しました");
+}
+
+/* ------------------------------
+   課題設定（15分刻み対応）
+------------------------------ */
+function renderTaskSetting() {
+  const list = document.getElementById("taskList");
+  list.innerHTML = "";
+
+  data.subjects.forEach((subj, i) => {
+    let tasksHtml = "";
+    subj.tasks.forEach((t, idx) => {
+      tasksHtml += `
+        <div style="border:1px solid #ccc; padding:8px; margin-bottom:6px; border-radius:6px;">
+          <b>${idx+1}. ${t.content}</b><br>
+          期限：${t.deadline}<br>
+          <button class="delete-btn" onclick="deleteTask(${i}, ${idx})">削除</button>
+        </div>
+      `;
+    });
+
+    list.innerHTML += `
+      <div class="subject-box">
+        <h4>No.${i+1}：${subj.name}</h4>
+        ${tasksHtml || "（課題なし）"}
+        <hr>
+
+        <textarea id="newTask${i}" rows="2" placeholder="課題内容"></textarea>
+        <input type="date" id="newDate${i}">
+
+        <select id="newHour${i}">
+          ${Array.from({length: 24}, (_,h) => 
+            `<option value="${String(h).padStart(2,'0')}">${h}時</option>`
+          ).join('')}
+        </select>
+
+        <select id="newMin${i}">
+          <option value="00">00分</option>
+          <option value="15">15分</option>
+          <option value="30">30分</option>
+          <option value="45">45分</option>
+        </select>
+
+        <button class="save-btn" onclick="addTask(${i})">課題追加</button>
+      </div>
+    `;
+  });
+}
+
+function addTask(i) {
+  const content = document.getElementById("newTask" + i).value.trim();
+  const date = document.getElementById("newDate" + i).value;
+  const hour = document.getElementById("newHour" + i).value;
+  const min = document.getElementById("newMin" + i).value;
+
+  if (!content || !date) return alert("内容と日付を入力してください");
+
+  const deadline = `${date}T${hour}:${min}`;
+  data.subjects[i].tasks.push({ content, deadline });
+  localStorage.setItem("taskData", JSON.stringify(data));
+  renderTaskSetting();
+}
+
+function deleteTask(i, idx) {
+  if (!confirm("削除しますか？")) return;
+  data.subjects[i].tasks.splice(idx, 1);
+  localStorage.setItem("taskData", JSON.stringify(data));
+  renderTaskSetting();
+}
+
+/* ------------------------------
+   PW設定
+------------------------------ */
+function savePW() {
+  pwData.teacherPW = document.getElementById("tpw").value;
+  pwData.studentPW = document.getElementById("spw").value;
+  localStorage.setItem("pwData", JSON.stringify(pwData));
+  alert("保存しました");
+}
+</script>
+
+</body>
+</html>

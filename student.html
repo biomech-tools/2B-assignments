@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>学生管理画面</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+  body { font-family: system-ui; padding: 20px; }
+  .menu-btn { width: 100%; padding: 14px; margin-bottom: 12px; background: #4a6cf7; color: white; border: none; border-radius: 8px; }
+  .hidden { display: none; }
+  .subject-box { border: 1px solid #ccc; padding: 12px; margin-bottom: 12px; border-radius: 8px; }
+  .delete-btn { background: #d9534f; color: white; border: none; padding: 6px 10px; border-radius: 4px; }
+  .save-btn { margin-top: 10px; padding: 10px; width: 100%; background: #4a6cf7; color: white; border: none; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<h2>学生管理画面</h2>
+
+<div id="menu">
+  <!-- ★ PWボタン削除済み -->
+  <button class="menu-btn" id="btnTask">課題設定</button>
+</div>
+
+<div id="taskSetting" class="hidden">
+  <h3>課題設定</h3>
+  <div id="taskList"></div>
+</div>
+
+<script>
+const SUBJECT_COUNT = 15;
+
+let data = JSON.parse(localStorage.getItem("taskData")) || {
+  subjects: Array.from({ length: SUBJECT_COUNT }, () => ({
+    name: "科目名",
+    tasks: []
+  }))
+};
+
+btnTask.onclick = () => {
+  menu.classList.add("hidden");
+  taskSetting.classList.remove("hidden");
+  renderTaskSetting();
+};
+
+function renderTaskSetting() {
+  const list = document.getElementById("taskList");
+  list.innerHTML = "";
+
+  data.subjects.forEach((subj, i) => {
+    let tasksHtml = "";
+    subj.tasks.forEach((t, idx) => {
+      tasksHtml += `
+        <div style="border:1px solid #ccc; padding:8px; margin-bottom:6px; border-radius:6px;">
+          <b>${idx+1}. ${t.content}</b><br>
+          期限：${t.deadline}<br>
+          <button class="delete-btn" onclick="deleteTask(${i}, ${idx})">削除</button>
+        </div>
+      `;
+    });
+
+    list.innerHTML += `
+      <div class="subject-box">
+        <h4>No.${i+1}：${subj.name}</h4>
+        ${tasksHtml || "（課題なし）"}
+        <hr>
+
+        <textarea id="newTask${i}" rows="2" placeholder="課題内容"></textarea>
+        <input type="date" id="newDate${i}">
+
+        <select id="newHour${i}">
+          ${Array.from({length: 24}, (_,h) => 
+            `<option value="${String(h).padStart(2,'0')}">${h}時</option>`
+          ).join('')}
+        </select>
+
+        <select id="newMin${i}">
+          <option value="00">00分</option>
+          <option value="15">15分</option>
+          <option value="30">30分</option>
+          <option value="45">45分</option>
+        </select>
+
+        <button class="save-btn" onclick="addTask(${i})">課題追加</button>
+      </div>
+    `;
+  });
+}
+
+function addTask(i) {
+  const content = document.getElementById("newTask" + i).value.trim();
+  const date = document.getElementById("newDate" + i).value;
+  const hour = document.getElementById("newHour" + i).value;
+  const min = document.getElementById("newMin" + i).value;
+
+  if (!content || !date) return alert("内容と日付を入力してください");
+
+  const deadline = `${date}T${hour}:${min}`;
+  data.subjects[i].tasks.push({ content, deadline });
+  localStorage.setItem("taskData", JSON.stringify(data));
+  renderTaskSetting();
+}
+
+function deleteTask(i, idx) {
+  if (!confirm("削除しますか？")) return;
+  data.subjects[i].tasks.splice(idx, 1);
+  localStorage.setItem("taskData", JSON.stringify(data));
+  renderTaskSetting();
+}
+</script>
+
+</body>
+</html>
