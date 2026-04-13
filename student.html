@@ -264,14 +264,20 @@ async function init() {
   document.getElementById('loadingOverlay').style.display = 'flex';
   await loadData();
   document.getElementById('loadingOverlay').style.display = 'none';
-  document.getElementById('pwScreen').style.display = 'flex';
-  setTimeout(() => document.getElementById('pwInput').focus(), 80);
+  if (sessionStorage.getItem('auth_role') === 'student') {
+    document.getElementById('mainPage').classList.add('active');
+    renderTaskList();
+  } else {
+    document.getElementById('pwScreen').style.display = 'flex';
+    setTimeout(() => document.getElementById('pwInput').focus(), 80);
+  }
 }
 
 function verifyPw() {
   const pw = document.getElementById('pwInput').value;
   if (!appConfig) { document.getElementById('pwError').textContent = '読み込みエラーです。ページを再読み込みしてください'; return; }
   if (pw === appConfig.student_pw) {
+    sessionStorage.setItem('auth_role', 'student');
     document.getElementById('pwScreen').style.display = 'none';
     document.getElementById('mainPage').classList.add('active');
     renderTaskList();

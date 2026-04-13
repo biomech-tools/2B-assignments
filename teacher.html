@@ -354,14 +354,19 @@ async function init() {
   document.getElementById('loadingOverlay').style.display = 'flex';
   await loadData();
   document.getElementById('loadingOverlay').style.display = 'none';
-  document.getElementById('pwScreen').style.display = 'flex';
-  setTimeout(() => document.getElementById('pwInput').focus(), 80);
+  if (sessionStorage.getItem('auth_role') === 'teacher') {
+    document.getElementById('mainPage').classList.add('active');
+  } else {
+    document.getElementById('pwScreen').style.display = 'flex';
+    setTimeout(() => document.getElementById('pwInput').focus(), 80);
+  }
 }
 
 function verifyPw() {
   const pw = document.getElementById('pwInput').value;
   if (!appConfig) { document.getElementById('pwError').textContent = '読み込みエラーです。ページを再読み込みしてください'; return; }
   if (pw === appConfig.teacher_pw) {
+    sessionStorage.setItem('auth_role', 'teacher');
     document.getElementById('pwScreen').style.display = 'none';
     document.getElementById('mainPage').classList.add('active');
   } else {
