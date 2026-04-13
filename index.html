@@ -8,7 +8,21 @@
 <style>
   body { font-family: system-ui; padding: 20px; }
 
-  h2 { margin-bottom: 20px; text-align: center; }
+  /* タイトル＋リロードボタン */
+  h2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  #reloadBtn {
+    padding: 6px 10px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: #f5f5f5;
+    cursor: pointer;
+  }
 
   /* --- タイルレイアウト --- */
   #tileContainer {
@@ -33,7 +47,7 @@
   .blue { background: #bde0ff; }
   .yellow { background: #fff3b0; }
   .orange { background: #ffd59e; }
-  .red { background: #ff0000; }
+  .red { background: #ff0000; color: #fff; }
 
   /* --- 点滅（ゆっくり） --- */
   @keyframes slowBlink {
@@ -41,9 +55,7 @@
     50% { opacity: 0.3; }
     100% { opacity: 1; }
   }
-  .slow-blink {
-    animation: slowBlink 1s infinite;
-  }
+  .slow-blink { animation: slowBlink 1s infinite; }
 
   /* --- 点滅（速い） --- */
   @keyframes fastBlink {
@@ -51,9 +63,7 @@
     50% { opacity: 0.1; }
     100% { opacity: 1; }
   }
-  .fast-blink {
-    animation: fastBlink 0.3s infinite;
-  }
+  .fast-blink { animation: fastBlink 0.3s infinite; }
 
   /* --- 管理画面ボタン --- */
   #manageBtn {
@@ -75,7 +85,6 @@
     background: rgba(0,0,0,0.5);
     display: none;
   }
-
   #modal {
     background: #fff;
     width: 90%;
@@ -84,7 +93,6 @@
     padding: 20px;
     border-radius: 10px;
   }
-
   .taskBox {
     border: 1px solid #ccc;
     padding: 10px;
@@ -95,13 +103,13 @@
 </head>
 <body>
 
-<!-- ★ 教員が設定したタイトルを表示 -->
-<h2 id="tileTitle">課題一覧</h2>
+<h2>
+  <span id="tileTitle">課題一覧</span>
+  <button id="reloadBtn">🔄</button>
+</h2>
 
-<!-- ★ 3×5 タイル -->
 <div id="tileContainer"></div>
 
-<!-- ★ 管理画面に進むボタン -->
 <button id="manageBtn" onclick="openManage()">管理画面に進む</button>
 
 <!-- モーダル -->
@@ -114,9 +122,6 @@
 </div>
 
 <script>
-/* ------------------------------
-   データ読み込み
------------------------------- */
 let data = JSON.parse(localStorage.getItem("taskData")) || {
   subjects: Array.from({ length: 15 }, () => ({
     name: "科目名",
@@ -130,15 +135,12 @@ let pwData = JSON.parse(localStorage.getItem("pwData")) || {
   tileTitle: "課題一覧"
 };
 
-/* ★ タイトル反映 */
 document.getElementById("tileTitle").textContent = pwData.tileTitle;
 
-/* 提出状態（ユーザーごとに独立） */
 let submitData = JSON.parse(localStorage.getItem("submitData")) || {};
 
-/* ------------------------------
-   管理画面へ
------------------------------- */
+document.getElementById("reloadBtn").onclick = () => location.reload();
+
 function openManage() {
   const pw = prompt("パスワードを入力してください");
 
@@ -151,9 +153,6 @@ function openManage() {
   }
 }
 
-/* ------------------------------
-   タイル描画
------------------------------- */
 function renderTiles() {
   const box = document.getElementById("tileContainer");
   box.innerHTML = "";
@@ -172,9 +171,6 @@ function renderTiles() {
   });
 }
 
-/* ------------------------------
-   タイル色判定ロジック
------------------------------- */
 function getTileColor(subjectIndex) {
   const tasks = data.subjects[subjectIndex].tasks;
 
@@ -183,20 +179,15 @@ function getTileColor(subjectIndex) {
   }
 
   const now = new Date();
-
-  // 未提出課題だけ抽出
   const unsubmitted = tasks.filter((t, idx) => !submitData["subject" + subjectIndex][idx]);
 
-  // 未提出がない → グレー
   if (unsubmitted.length === 0) return "gray";
 
-  // 期限切れの未提出
   const overdue = unsubmitted.filter(t => new Date(t.deadline) < now);
 
   if (overdue.length >= 2) return "fast-blink red";
   if (overdue.length === 1) return "slow-blink red";
 
-  // 最も期限が近い未提出
   const nearest = unsubmitted.reduce((a, b) =>
     new Date(a.deadline) < new Date(b.deadline) ? a : b
   );
@@ -209,9 +200,6 @@ function getTileColor(subjectIndex) {
   return "blue";
 }
 
-/* ------------------------------
-   モーダル表示
------------------------------- */
 function openModal(subjectIndex) {
   const subj = data.subjects[subjectIndex];
   document.getElementById("modalTitle").textContent = subj.name;
@@ -246,18 +234,12 @@ function closeModal() {
   document.getElementById("modalBg").style.display = "none";
 }
 
-/* ------------------------------
-   提出チェック
------------------------------- */
 function toggleSubmit(subjectIndex, taskIndex, checkbox) {
   submitData["subject" + subjectIndex][taskIndex] = checkbox.checked;
   localStorage.setItem("submitData", JSON.stringify(submitData));
   renderTiles();
 }
 
-/* ------------------------------
-   初期描画
------------------------------- */
 renderTiles();
 </script>
 
