@@ -330,7 +330,7 @@ async function loadData() {
   const [cfgRes, subjRes, taskRes] = await Promise.all([
     db.from('app_config').select('*').eq('id', 1).maybeSingle(),
     db.from('subjects').select('*').order('id'),
-    db.from('tasks').select('*').order('created_at')
+    db.from('tasks').select('*').order('deadline', { ascending: false })
   ]);
   if (cfgRes.data)  appConfig  = cfgRes.data;
   if (subjRes.data) subjects   = subjRes.data;
