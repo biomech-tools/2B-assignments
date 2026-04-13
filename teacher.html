@@ -225,19 +225,6 @@
   <p>読み込み中...</p>
 </div>
 
-<div class="pw-screen" id="pwScreen" style="display:none">
-  <div class="pw-card">
-    <h2>教員管理画面</h2>
-    <p>教員パスワードを入力してください</p>
-    <input class="pw-input" type="password" id="pwInput" placeholder="パスワード"
-      onkeydown="if(event.key==='Enter')verifyPw()">
-    <div class="pw-error" id="pwError"></div>
-    <div class="pw-btn-row">
-      <button class="pw-btn pw-btn-back" onclick="location.href='index.html'">戻る</button>
-      <button class="pw-btn pw-btn-enter" onclick="verifyPw()">ログイン</button>
-    </div>
-  </div>
-</div>
 
 <div class="page" id="mainPage">
   <a class="back-link" href="index.html">&#8592; 起動画面へ戻る</a>
@@ -351,28 +338,14 @@ async function loadData() {
 }
 
 async function init() {
+  if (sessionStorage.getItem('auth_role') !== 'teacher') {
+    location.href = 'index.html';
+    return;
+  }
   document.getElementById('loadingOverlay').style.display = 'flex';
   await loadData();
   document.getElementById('loadingOverlay').style.display = 'none';
-  if (sessionStorage.getItem('auth_role') === 'teacher') {
-    document.getElementById('mainPage').classList.add('active');
-  } else {
-    document.getElementById('pwScreen').style.display = 'flex';
-    setTimeout(() => document.getElementById('pwInput').focus(), 80);
-  }
-}
-
-function verifyPw() {
-  const pw = document.getElementById('pwInput').value;
-  if (!appConfig) { document.getElementById('pwError').textContent = '読み込みエラーです。ページを再読み込みしてください'; return; }
-  if (pw === appConfig.teacher_pw) {
-    sessionStorage.setItem('auth_role', 'teacher');
-    document.getElementById('pwScreen').style.display = 'none';
-    document.getElementById('mainPage').classList.add('active');
-  } else {
-    document.getElementById('pwError').textContent = 'パスワードが違います';
-    document.getElementById('pwInput').select();
-  }
+  document.getElementById('mainPage').classList.add('active');
 }
 
 async function saveTitle() {
