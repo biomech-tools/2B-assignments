@@ -3,245 +3,395 @@
 <head>
 <meta charset="UTF-8">
 <title>課題一覧</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
-  body { font-family: system-ui; padding: 20px; }
-
-  /* タイトル＋リロードボタン */
-  h2 {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', system-ui, sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    padding: 16px 14px 28px;
+  }
+  .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
-  #reloadBtn {
-    padding: 6px 10px;
-    font-size: 16px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    background: #f5f5f5;
+  .header h1 {
+    font-size: 21px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+  .reload-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    font-size: 20px;
     cursor: pointer;
+    transition: transform 0.25s;
   }
+  .reload-btn:active { transform: rotate(180deg); }
 
-  /* --- タイルレイアウト --- */
   #tileContainer {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 30px;
+    gap: 10px;
+    margin-bottom: 20px;
   }
-
   .tile {
-    padding: 16px;
-    border-radius: 10px;
-    color: #000;
+    position: relative;
+    border-radius: 12px;
+    padding: 12px 8px 10px;
+    min-height: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    font-size: 18px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    border: 1px solid #ccc;
-  }
-
-  /* --- 色 --- */
-  .gray { background: #e0e0e0; }
-  .blue { background: #bde0ff; }
-  .yellow { background: #fff3b0; }
-  .orange { background: #ffd59e; }
-  .red { background: #ff0000; color: #fff; }
-
-  /* --- 点滅（ゆっくり） --- */
-  @keyframes slowBlink {
-    0% { opacity: 1; }
-    50% { opacity: 0.3; }
-    100% { opacity: 1; }
-  }
-  .slow-blink { animation: slowBlink 1s infinite; }
-
-  /* --- 点滅（速い） --- */
-  @keyframes fastBlink {
-    0% { opacity: 1; }
-    50% { opacity: 0.1; }
-    100% { opacity: 1; }
-  }
-  .fast-blink { animation: fastBlink 0.3s infinite; }
-
-  /* --- 管理画面ボタン --- */
-  #manageBtn {
-    width: 100%;
-    padding: 14px;
-    background: #4a6cf7;
-    color: white;
+    word-break: break-all;
+    line-height: 1.4;
     border: none;
-    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: transform 0.12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tile:active { transform: scale(0.94); }
+  .tile-badge {
+    position: absolute;
+    top: 5px; right: 5px;
+    background: rgba(0,0,0,0.2);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9px;
+    padding: 1px 5px;
+    min-width: 17px;
+    text-align: center;
+  }
+  .c-gray   { background: #dde1e7; color: #444; }
+  .c-blue   { background: #c8e6ff; color: #1255a0; }
+  .c-yellow { background: #fff9c4; color: #7a5f00; }
+  .c-orange { background: #ffe0b2; color: #bf4800; }
+  .c-red    { background: #ff4444; color: #fff; }
+  @keyframes slowBlink {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  @keyframes fastBlink {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.08; }
+  }
+  .blink-slow { animation: slowBlink 1s ease-in-out infinite; }
+  .blink-fast { animation: fastBlink 0.32s ease-in-out infinite; }
+
+  .manage-btn {
+    width: 100%;
+    padding: 16px;
+    background: #1a1a2e;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(26,26,46,0.22);
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.15s;
+  }
+  .manage-btn:active { opacity: 0.8; }
+
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: rgba(240,242,245,0.88);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 300; gap: 14px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #dde1e7;
+    border-top-color: #1a1a2e;
+    border-radius: 50%;
+    animation: spin 0.65s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay p { font-size: 14px; color: #666; }
+
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.52);
+    display: none;
+    z-index: 100;
+    overflow-y: auto;
+    padding: 20px 14px 30px;
+  }
+  .modal-bg.open { display: block; }
+  .modal {
+    background: #fff;
+    max-width: 480px;
+    margin: 30px auto 0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .modal-header {
+    padding: 16px 18px;
+    background: #1a1a2e;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-header h2 { font-size: 17px; font-weight: 700; }
+  .modal-close {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
     font-size: 18px;
     cursor: pointer;
+    line-height: 1;
   }
-
-  /* --- モーダル --- */
-  #modalBg {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5);
-    display: none;
-  }
-  #modal {
-    background: #fff;
-    width: 90%;
-    max-width: 500px;
-    margin: 80px auto;
-    padding: 20px;
+  .modal-body { padding: 14px; }
+  .task-card {
+    border: 1.5px solid #e8eaed;
     border-radius: 10px;
-  }
-  .taskBox {
-    border: 1px solid #ccc;
-    padding: 10px;
+    padding: 12px 14px;
     margin-bottom: 10px;
-    border-radius: 6px;
+    background: #fafafa;
   }
+  .task-card.submitted { background: #f1faf2; border-color: #a5d6a7; }
+  .task-card.overdue   { background: #fff5f5; border-color: #ff6b6b; }
+  .task-content { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 5px; }
+  .task-deadline { font-size: 13px; color: #777; margin-bottom: 10px; }
+  .task-deadline.is-overdue { color: #c62828; font-weight: 700; }
+  .task-deadline.is-soon    { color: #e65100; font-weight: 600; }
+  .submit-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 500; color: #333; cursor: pointer;
+  }
+  .submit-label input[type="checkbox"] {
+    width: 18px; height: 18px;
+    accent-color: #2e7d32; cursor: pointer;
+  }
+  .no-tasks { text-align: center; padding: 24px; color: #aaa; font-size: 14px; }
+
+  .pw-dialog-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.52);
+    display: none; z-index: 200;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .pw-dialog-bg.open { display: flex; }
+  .pw-dialog {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px 22px;
+    width: 100%; max-width: 320px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .pw-dialog h3 { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px; text-align: center; }
+  .pw-input {
+    width: 100%; padding: 12px 14px;
+    border: 1.5px solid #dde1e7;
+    border-radius: 10px; font-size: 16px;
+    margin-bottom: 10px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .pw-input:focus { border-color: #1a1a2e; }
+  .pw-error { color: #c62828; font-size: 13px; text-align: center; margin-bottom: 10px; min-height: 16px; }
+  .pw-buttons { display: flex; gap: 10px; }
+  .pw-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .pw-btn-cancel { background: #f0f2f5; color: #555; }
+  .pw-btn-ok { background: #1a1a2e; color: #fff; }
 </style>
 </head>
 <body>
 
-<h2>
-  <span id="tileTitle">課題一覧</span>
-  <button id="reloadBtn">🔄</button>
-</h2>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p>読み込み中...</p>
+</div>
+
+<div class="header">
+  <h1 id="tileTitle">課題一覧</h1>
+  <button class="reload-btn" id="reloadBtn">&#8635;</button>
+</div>
 
 <div id="tileContainer"></div>
 
-<button id="manageBtn" onclick="openManage()">管理画面に進む</button>
+<button class="manage-btn" onclick="openPwDialog()">管理画面に進む</button>
 
-<!-- モーダル -->
-<div id="modalBg" onclick="closeModal()">
-  <div id="modal" onclick="event.stopPropagation()">
-    <h3 id="modalTitle"></h3>
-    <div id="modalTasks"></div>
-    <button onclick="closeModal()">閉じる</button>
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle"></h2>
+      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="pw-dialog-bg" id="pwDialogBg">
+  <div class="pw-dialog">
+    <h3>パスワードを入力</h3>
+    <input class="pw-input" type="password" id="pwInput" placeholder="パスワード"
+      onkeydown="if(event.key==='Enter')checkPw()">
+    <div class="pw-error" id="pwError"></div>
+    <div class="pw-buttons">
+      <button class="pw-btn pw-btn-cancel" onclick="closePwDialog()">キャンセル</button>
+      <button class="pw-btn pw-btn-ok" onclick="checkPw()">進む</button>
+    </div>
   </div>
 </div>
 
 <script>
-let data = JSON.parse(localStorage.getItem("taskData")) || {
-  subjects: Array.from({ length: 15 }, () => ({
-    name: "科目名",
-    tasks: []
-  }))
-};
+const SUPABASE_URL = 'https://0ec90b57d6e95fcbda19832f.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJib2x0IiwicmVmIjoiMGVjOTBiNTdkNmU5NWZjYmRhMTk4MzJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODE1NzQsImV4cCI6MTc1ODg4MTU3NH0.9I8-U0x86Ak8t2DGaIk0HfvTSLsAyzdnz-Nw00mMkKw';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let pwData = JSON.parse(localStorage.getItem("pwData")) || {
-  teacherPW: "2026hrt",
-  studentPW: "2026s",
-  tileTitle: "課題一覧"
-};
+let appConfig = { tile_title: '課題一覧', teacher_pw: '2026hrt', student_pw: '2026s' };
+let subjects = [];
+let tasks = [];
+let submitData = JSON.parse(localStorage.getItem('submitData_v2') || '{}');
 
-document.getElementById("tileTitle").textContent = pwData.tileTitle;
+function saveSubmit() { localStorage.setItem('submitData_v2', JSON.stringify(submitData)); }
 
-let submitData = JSON.parse(localStorage.getItem("submitData")) || {};
+async function loadData() {
+  document.getElementById('loadingOverlay').style.display = 'flex';
+  try {
+    const [cfgRes, subjRes, taskRes] = await Promise.all([
+      db.from('app_config').select('*').eq('id', 1).maybeSingle(),
+      db.from('subjects').select('*').order('id'),
+      db.from('tasks').select('*').order('created_at')
+    ]);
+    if (cfgRes.data)  appConfig  = cfgRes.data;
+    if (subjRes.data) subjects   = subjRes.data;
+    if (taskRes.data) tasks      = taskRes.data;
+  } catch(e) { console.error(e); }
+  document.getElementById('tileTitle').textContent = appConfig.tile_title;
+  renderTiles();
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
 
-document.getElementById("reloadBtn").onclick = () => location.reload();
+function tasksOf(subjectId) { return tasks.filter(t => t.subject_id === subjectId); }
 
-function openManage() {
-  const pw = prompt("パスワードを入力してください");
-
-  if (pw === pwData.teacherPW || pw === "adminhrt") {
-    location.href = "teacher.html";
-  } else if (pw === pwData.studentPW || pw === "adminstdt") {
-    location.href = "student.html";
-  } else {
-    alert("パスワードが違います");
-  }
+function getTileState(subjectId) {
+  const st = tasksOf(subjectId);
+  const key = 's' + subjectId;
+  if (!submitData[key]) submitData[key] = {};
+  const unsub = st.filter(t => !submitData[key][t.id]);
+  if (!unsub.length) return { color: 'gray', blink: null };
+  const now = new Date();
+  const over = unsub.filter(t => new Date(t.deadline) < now);
+  if (over.length >= 2) return { color: 'red', blink: 'fast' };
+  if (over.length === 1) return { color: 'red', blink: 'slow' };
+  const near = unsub.reduce((a, b) => new Date(a.deadline) < new Date(b.deadline) ? a : b);
+  const dh = (new Date(near.deadline) - now) / 3600000;
+  if (dh <= 24) return { color: 'red', blink: null };
+  if (dh <= 48) return { color: 'orange', blink: null };
+  if (dh <= 72) return { color: 'yellow', blink: null };
+  return { color: 'blue', blink: null };
 }
 
 function renderTiles() {
-  const box = document.getElementById("tileContainer");
-  box.innerHTML = "";
-
-  data.subjects.forEach((subj, i) => {
-    const tile = document.createElement("div");
-    tile.className = "tile";
-    tile.textContent = subj.name;
-
-    const colorClass = getTileColor(i);
-    tile.classList.add(...colorClass.split(" "));
-
-    tile.onclick = () => openModal(i);
-
-    box.appendChild(tile);
+  const box = document.getElementById('tileContainer');
+  box.innerHTML = '';
+  subjects.forEach(s => {
+    const st = getTileState(s.id);
+    const el = document.createElement('div');
+    el.className = 'tile c-' + st.color + (st.blink ? ' blink-' + st.blink : '');
+    const key = 's' + s.id;
+    if (!submitData[key]) submitData[key] = {};
+    const cnt = tasksOf(s.id).filter(t => !submitData[key][t.id]).length;
+    el.innerHTML = s.name + (cnt > 0 ? `<span class="tile-badge">${cnt}</span>` : '');
+    el.onclick = () => openModal(s);
+    box.appendChild(el);
   });
 }
 
-function getTileColor(subjectIndex) {
-  const tasks = data.subjects[subjectIndex].tasks;
+function fmtDate(dt) {
+  const d = new Date(dt);
+  return d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate() + ' ' +
+    String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
 
-  if (!submitData["subject" + subjectIndex]) {
-    submitData["subject" + subjectIndex] = {};
+function openModal(subj) {
+  document.getElementById('modalTitle').textContent = subj.name;
+  const body = document.getElementById('modalBody');
+  body.innerHTML = '';
+  const key = 's' + subj.id;
+  if (!submitData[key]) submitData[key] = {};
+  const st = tasksOf(subj.id);
+  if (!st.length) {
+    body.innerHTML = '<div class="no-tasks">課題はありません</div>';
+  } else {
+    const now = new Date();
+    st.forEach(t => {
+      const done = !!submitData[key][t.id];
+      const over = new Date(t.deadline) < now;
+      const dh   = (new Date(t.deadline) - now) / 3600000;
+      const card = document.createElement('div');
+      card.className = 'task-card' + (done ? ' submitted' : (over ? ' overdue' : ''));
+      let dlClass = 'task-deadline' + (!done && over ? ' is-overdue' : (!done && dh <= 24 ? ' is-soon' : ''));
+      card.innerHTML =
+        `<div class="task-content">${t.content}</div>` +
+        `<div class="${dlClass}">期限：${fmtDate(t.deadline)}${!done && over ? '　⚠ 期限切れ' : ''}</div>` +
+        `<label class="submit-label">` +
+          `<input type="checkbox" ${done ? 'checked' : ''} onchange="toggleSubmit('${subj.id}','${t.id}',this)">` +
+          `提出した` +
+        `</label>`;
+      body.appendChild(card);
+    });
   }
+  document.getElementById('modalBg').classList.add('open');
+}
 
+function closeModal() { document.getElementById('modalBg').classList.remove('open'); }
+document.getElementById('modalBg').onclick = e => { if (e.target === document.getElementById('modalBg')) closeModal(); };
+
+function toggleSubmit(subjId, taskId, cb) {
+  const key = 's' + subjId;
+  if (!submitData[key]) submitData[key] = {};
+  submitData[key][taskId] = cb.checked;
+  saveSubmit();
+  const t = tasks.find(x => x.id === taskId);
   const now = new Date();
-  const unsubmitted = tasks.filter((t, idx) => !submitData["subject" + subjectIndex][idx]);
-
-  if (unsubmitted.length === 0) return "gray";
-
-  const overdue = unsubmitted.filter(t => new Date(t.deadline) < now);
-
-  if (overdue.length >= 2) return "fast-blink red";
-  if (overdue.length === 1) return "slow-blink red";
-
-  const nearest = unsubmitted.reduce((a, b) =>
-    new Date(a.deadline) < new Date(b.deadline) ? a : b
-  );
-
-  const diffH = (new Date(nearest.deadline) - now) / 1000 / 3600;
-
-  if (diffH <= 24) return "red";
-  if (diffH <= 48) return "orange";
-  if (diffH <= 72) return "yellow";
-  return "blue";
-}
-
-function openModal(subjectIndex) {
-  const subj = data.subjects[subjectIndex];
-  document.getElementById("modalTitle").textContent = subj.name;
-
-  const taskBox = document.getElementById("modalTasks");
-  taskBox.innerHTML = "";
-
-  if (!submitData["subject" + subjectIndex]) {
-    submitData["subject" + subjectIndex] = {};
-  }
-
-  subj.tasks.forEach((t, idx) => {
-    const checked = submitData["subject" + subjectIndex][idx] ? "checked" : "";
-
-    taskBox.innerHTML += `
-      <div class="taskBox">
-        <b>${t.content}</b><br>
-        期限：${t.deadline}<br>
-        <label>
-          <input type="checkbox" ${checked}
-            onchange="toggleSubmit(${subjectIndex}, ${idx}, this)">
-          提出した
-        </label>
-      </div>
-    `;
-  });
-
-  document.getElementById("modalBg").style.display = "block";
-}
-
-function closeModal() {
-  document.getElementById("modalBg").style.display = "none";
-}
-
-function toggleSubmit(subjectIndex, taskIndex, checkbox) {
-  submitData["subject" + subjectIndex][taskIndex] = checkbox.checked;
-  localStorage.setItem("submitData", JSON.stringify(submitData));
+  const over = t && new Date(t.deadline) < now;
+  const card = cb.closest('.task-card');
+  card.className = 'task-card' + (cb.checked ? ' submitted' : (over ? ' overdue' : ''));
   renderTiles();
 }
 
-renderTiles();
-</script>
+function openPwDialog() {
+  document.getElementById('pwInput').value = '';
+  document.getElementById('pwError').textContent = '';
+  document.getElementById('pwDialogBg').classList.add('open');
+  setTimeout(() => document.getElementById('pwInput').focus(), 80);
+}
+function closePwDialog() { document.getElementById('pwDialogBg').classList.remove('open'); }
+function checkPw() {
+  const pw = document.getElementById('pwInput').value;
+  if (pw === appConfig.teacher_pw) { location.href = 'teacher.html'; }
+  else if (pw === appConfig.student_pw) { location.href = 'student.html'; }
+  else {
+    document.getElementById('pwError').textContent = 'パスワードが違います';
+    document.getElementById('pwInput').select();
+  }
+}
 
+document.getElementById('reloadBtn').onclick = () => loadData();
+loadData();
+</script>
 </body>
 </html>

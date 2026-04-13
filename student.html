@@ -3,115 +3,361 @@
 <head>
 <meta charset="UTF-8">
 <title>学生管理画面</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
-  body { font-family: system-ui; padding: 20px; }
-  .menu-btn { width: 100%; padding: 14px; margin-bottom: 12px; background: #4a6cf7; color: white; border: none; border-radius: 8px; }
-  .hidden { display: none; }
-  .subject-box { border: 1px solid #ccc; padding: 12px; margin-bottom: 12px; border-radius: 8px; }
-  .delete-btn { background: #d9534f; color: white; border: none; padding: 6px 10px; border-radius: 4px; }
-  .save-btn { margin-top: 10px; padding: 10px; width: 100%; background: #4a6cf7; color: white; border: none; border-radius: 6px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', system-ui, sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    padding: 16px 14px 32px;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #555;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    margin-bottom: 16px;
+    padding: 8px 12px 8px 8px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  .page-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 6px;
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 18px;
+  }
+
+  .section-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    margin-bottom: 12px;
+  }
+  .section-title { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px; }
+
+  .form-row { margin-bottom: 12px; }
+  .form-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 5px; display: block; }
+  .form-input, .form-textarea, .form-select {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1.5px solid #dde1e7;
+    border-radius: 10px;
+    font-size: 15px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    background: #fff;
+  }
+  .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: #1a1a2e; }
+  .form-textarea { resize: vertical; min-height: 64px; }
+  .form-row-inline { display: flex; gap: 8px; }
+  .form-row-inline .form-select { flex: 1; }
+
+  .btn {
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 12px 18px;
+    transition: opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { opacity: 0.8; }
+  .btn-primary { background: #1a1a2e; color: #fff; width: 100%; margin-top: 10px; }
+  .btn-danger { background: #d32f2f; color: #fff; padding: 7px 12px; font-size: 13px; border-radius: 8px; }
+
+  .subject-item {
+    border: 1.5px solid #e8eaed;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: #fafafa;
+  }
+  .subject-item-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: #999;
+    margin-bottom: 8px;
+  }
+
+  .task-item {
+    border: 1px solid #e8eaed;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: #fff;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .task-item-info { flex: 1; }
+  .task-item-content { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 3px; }
+  .task-item-deadline { font-size: 12px; color: #777; }
+
+  .add-task-box {
+    background: #f7f8fa;
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 12px;
+    border: 1.5px dashed #c8cdd5;
+  }
+  .add-task-title { font-size: 13px; font-weight: 600; color: #777; margin-bottom: 10px; }
+
+  .no-tasks { font-size: 13px; color: #bbb; text-align: center; padding: 10px 0; }
+
+  .subject-selector {
+    margin-bottom: 16px;
+  }
+  .subject-selector label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 5px; display: block; }
+
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1a1a2e;
+    color: #fff;
+    padding: 11px 22px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 500;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: rgba(240,242,245,0.88);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 300; gap: 14px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #dde1e7;
+    border-top-color: #1a1a2e;
+    border-radius: 50%;
+    animation: spin 0.65s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay p { font-size: 14px; color: #666; }
+
+  .pw-screen {
+    position: fixed; inset: 0;
+    background: #f0f2f5;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 400;
+    padding: 20px;
+  }
+  .pw-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 28px 24px;
+    width: 100%; max-width: 320px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    text-align: center;
+  }
+  .pw-card h2 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+  .pw-card p { font-size: 13px; color: #888; margin-bottom: 20px; }
+  .pw-input {
+    width: 100%; padding: 12px 14px;
+    border: 1.5px solid #dde1e7;
+    border-radius: 10px; font-size: 16px;
+    margin-bottom: 10px; outline: none;
+    transition: border-color 0.2s; text-align: center;
+  }
+  .pw-input:focus { border-color: #1a1a2e; }
+  .pw-error { color: #c62828; font-size: 13px; margin-bottom: 10px; min-height: 16px; }
+  .pw-btn-row { display: flex; gap: 10px; }
+  .pw-btn { flex: 1; padding: 13px; border-radius: 10px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .pw-btn-back { background: #f0f2f5; color: #555; }
+  .pw-btn-enter { background: #1a1a2e; color: #fff; }
 </style>
 </head>
 <body>
 
-<h2>学生管理画面</h2>
-
-<!-- ★ 追加：起動画面へ戻る（強制リロード） -->
-<a href="index.html" onclick="location.href='index.html'; return false;">← 起動画面へ戻る</a>
-
-<div id="menu">
-  <!-- ★ PWボタン削除済み -->
-  <button class="menu-btn" id="btnTask">課題設定</button>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p>読み込み中...</p>
 </div>
 
-<div id="taskSetting" class="hidden">
-  <h3>課題設定</h3>
-  <div id="taskList"></div>
+<div class="pw-screen" id="pwScreen" style="display:none">
+  <div class="pw-card">
+    <h2>学生管理画面</h2>
+    <p>学生パスワードを入力してください</p>
+    <input class="pw-input" type="password" id="pwInput" placeholder="パスワード"
+      onkeydown="if(event.key==='Enter')verifyPw()">
+    <div class="pw-error" id="pwError"></div>
+    <div class="pw-btn-row">
+      <button class="pw-btn pw-btn-back" onclick="location.href='index.html'">戻る</button>
+      <button class="pw-btn pw-btn-enter" onclick="verifyPw()">ログイン</button>
+    </div>
+  </div>
 </div>
+
+<div class="page" id="mainPage">
+  <a class="back-link" href="index.html">&#8592; 起動画面へ戻る</a>
+  <div class="page-title">学生管理画面</div>
+  <div class="page-subtitle">課題の追加・削除ができます</div>
+
+  <div class="section-card">
+    <div class="section-title">課題設定</div>
+    <div id="taskList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-const SUBJECT_COUNT = 15;
+const SUPABASE_URL = 'https://0ec90b57d6e95fcbda19832f.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJib2x0IiwicmVmIjoiMGVjOTBiNTdkNmU5NWZjYmRhMTk4MzJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODE1NzQsImV4cCI6MTc1ODg4MTU3NH0.9I8-U0x86Ak8t2DGaIk0HfvTSLsAyzdnz-Nw00mMkKw';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let data = JSON.parse(localStorage.getItem("taskData")) || {
-  subjects: Array.from({ length: SUBJECT_COUNT }, () => ({
-    name: "科目名",
-    tasks: []
-  }))
-};
+let appConfig = null;
+let subjects = [];
+let tasks = [];
 
-btnTask.onclick = () => {
-  menu.classList.add("hidden");
-  taskSetting.classList.remove("hidden");
-  renderTaskSetting();
-};
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
 
-function renderTaskSetting() {
-  const list = document.getElementById("taskList");
-  list.innerHTML = "";
+async function loadData() {
+  const [cfgRes, subjRes, taskRes] = await Promise.all([
+    db.from('app_config').select('*').eq('id', 1).maybeSingle(),
+    db.from('subjects').select('*').order('id'),
+    db.from('tasks').select('*').order('created_at')
+  ]);
+  if (cfgRes.data)  appConfig  = cfgRes.data;
+  if (subjRes.data) subjects   = subjRes.data;
+  if (taskRes.data) tasks      = taskRes.data;
+}
 
-  data.subjects.forEach((subj, i) => {
-    let tasksHtml = "";
-    subj.tasks.forEach((t, idx) => {
-      tasksHtml += `
-        <div style="border:1px solid #ccc; padding:8px; margin-bottom:6px; border-radius:6px;">
-          <b>${idx+1}. ${t.content}</b><br>
-          期限：${t.deadline}<br>
-          <button class="delete-btn" onclick="deleteTask(${i}, ${idx})">削除</button>
-        </div>
-      `;
+async function init() {
+  document.getElementById('loadingOverlay').style.display = 'flex';
+  await loadData();
+  document.getElementById('loadingOverlay').style.display = 'none';
+  document.getElementById('pwScreen').style.display = 'flex';
+  setTimeout(() => document.getElementById('pwInput').focus(), 80);
+}
+
+function verifyPw() {
+  const pw = document.getElementById('pwInput').value;
+  if (pw === appConfig.student_pw) {
+    document.getElementById('pwScreen').style.display = 'none';
+    document.getElementById('mainPage').classList.add('active');
+    renderTaskList();
+  } else {
+    document.getElementById('pwError').textContent = 'パスワードが違います';
+    document.getElementById('pwInput').select();
+  }
+}
+
+function fmtDate(dt) {
+  const d = new Date(dt);
+  return d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate() + ' ' +
+    String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+function renderTaskList() {
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+  subjects.forEach(s => {
+    const subTasks = tasks.filter(t => t.subject_id === s.id);
+    const div = document.createElement('div');
+    div.className = 'subject-item';
+    let tasksHtml = subTasks.length ? '' : '<div class="no-tasks">課題なし</div>';
+    subTasks.forEach(t => {
+      tasksHtml +=
+        `<div class="task-item">` +
+          `<div class="task-item-info">` +
+            `<div class="task-item-content">${t.content}</div>` +
+            `<div class="task-item-deadline">期限：${fmtDate(t.deadline)}</div>` +
+          `</div>` +
+          `<button class="btn btn-danger" onclick="deleteTask('${t.id}')">削除</button>` +
+        `</div>`;
     });
-
-    list.innerHTML += `
-      <div class="subject-box">
-        <h4>No.${i+1}：${subj.name}</h4>
-        ${tasksHtml || "（課題なし）"}
-        <hr>
-
-        <textarea id="newTask${i}" rows="2" placeholder="課題内容"></textarea>
-        <input type="date" id="newDate${i}">
-
-        <select id="newHour${i}">
-          ${Array.from({length: 24}, (_,h) => 
-            `<option value="${String(h).padStart(2,'0')}">${h}時</option>`
-          ).join('')}
-        </select>
-
-        <select id="newMin${i}">
-          <option value="00">00分</option>
-          <option value="15">15分</option>
-          <option value="30">30分</option>
-          <option value="45">45分</option>
-        </select>
-
-        <button class="save-btn" onclick="addTask(${i})">課題追加</button>
-      </div>
-    `;
+    div.innerHTML =
+      `<div class="subject-item-header">科目 ${s.id}：${s.name}</div>` +
+      tasksHtml +
+      `<div class="add-task-box">` +
+        `<div class="add-task-title">新しい課題を追加</div>` +
+        `<div class="form-row">` +
+          `<label class="form-label">課題内容</label>` +
+          `<textarea class="form-textarea" id="tc${s.id}" placeholder="課題の内容を入力"></textarea>` +
+        `</div>` +
+        `<div class="form-row">` +
+          `<label class="form-label">期限（日付）</label>` +
+          `<input class="form-input" type="date" id="td${s.id}">` +
+        `</div>` +
+        `<div class="form-row-inline">` +
+          `<select class="form-select" id="th${s.id}">` +
+            Array.from({length:24},(_,h)=>`<option value="${String(h).padStart(2,'0')}">${h}時</option>`).join('') +
+          `</select>` +
+          `<select class="form-select" id="tm${s.id}">` +
+            `<option value="00">00分</option><option value="15">15分</option>` +
+            `<option value="30">30分</option><option value="45">45分</option>` +
+          `</select>` +
+        `</div>` +
+        `<button class="btn btn-primary" onclick="addTask(${s.id})">課題を追加</button>` +
+      `</div>`;
+    list.appendChild(div);
   });
 }
 
-function addTask(i) {
-  const content = document.getElementById("newTask" + i).value.trim();
-  const date = document.getElementById("newDate" + i).value;
-  const hour = document.getElementById("newHour" + i).value;
-  const min = document.getElementById("newMin" + i).value;
-
-  if (!content || !date) return alert("内容と日付を入力してください");
-
-  const deadline = `${date}T${hour}:${min}`;
-  data.subjects[i].tasks.push({ content, deadline });
-  localStorage.setItem("taskData", JSON.stringify(data));
-  renderTaskSetting();
+async function addTask(subjId) {
+  const content = document.getElementById('tc' + subjId).value.trim();
+  const date    = document.getElementById('td' + subjId).value;
+  const hour    = document.getElementById('th' + subjId).value;
+  const min     = document.getElementById('tm' + subjId).value;
+  if (!content || !date) { showToast('内容と日付を入力してください'); return; }
+  const deadline = `${date}T${hour}:${min}:00`;
+  const { data, error } = await db.from('tasks').insert({ subject_id: subjId, content, deadline }).select().maybeSingle();
+  if (!error && data) {
+    tasks.push(data);
+    renderTaskList();
+    showToast('課題を追加しました');
+  } else showToast('追加に失敗しました');
 }
 
-function deleteTask(i, idx) {
-  if (!confirm("削除しますか？")) return;
-  data.subjects[i].tasks.splice(idx, 1);
-  localStorage.setItem("taskData", JSON.stringify(data));
-  renderTaskSetting();
+async function deleteTask(taskId) {
+  if (!confirm('この課題を削除しますか？')) return;
+  const { error } = await db.from('tasks').delete().eq('id', taskId);
+  if (!error) {
+    tasks = tasks.filter(t => t.id !== taskId);
+    renderTaskList();
+    showToast('課題を削除しました');
+  } else showToast('削除に失敗しました');
 }
+
+init();
 </script>
-
 </body>
 </html>
