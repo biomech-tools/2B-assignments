@@ -233,8 +233,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SUPABASE_URL = 'https://0ec90b57d6e95fcbda19832f.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJib2x0IiwicmVmIjoiMGVjOTBiNTdkNmU5NWZjYmRhMTk4MzJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODE1NzQsImV4cCI6MTc1ODg4MTU3NH0.9I8-U0x86Ak8t2DGaIk0HfvTSLsAyzdnz-Nw00mMkKw';
+const SUPABASE_URL = 'https://bfplcwonuapucdbsviqh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmcGxjd29udWFwdWNkYnN2aXFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNTkyNzgsImV4cCI6MjA5MTYzNTI3OH0.ZF4pidC7Aeq8sx5wFB11WQ6JmpOi2LC9ITIj_89nwgU';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -270,6 +270,7 @@ async function init() {
 
 function verifyPw() {
   const pw = document.getElementById('pwInput').value;
+  if (!appConfig) { document.getElementById('pwError').textContent = '読み込みエラーです。ページを再読み込みしてください'; return; }
   if (pw === appConfig.student_pw) {
     document.getElementById('pwScreen').style.display = 'none';
     document.getElementById('mainPage').classList.add('active');
